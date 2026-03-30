@@ -5,6 +5,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -51,8 +55,60 @@ class ConnectionServiceTest {
     }
 
     // createShouldThrowNotFoundWhenFromUserDoesNotExist
+    @Test
+    void create_ShouldThrowNotFoundWhenFromUserDoesNotExist() {
+
+        //mock
+        String fromUserId = "user1";
+        String toUserId = "user2";
+        when(userClient.userExists(fromUserId)).thenReturn(false);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> connectionService.create(fromUserId, toUserId)
+        );
+    }
     // createShouldThrowNotFoundWhenToUserDoesNotExist
+    @Test
+    void create_ShouldThrowNotFoundWhenToUserDoesNotExist() {
+        //mock
+        String fromUserId = "user1";
+        String toUserId = "user2";
+        when(userClient.userExists(fromUserId)).thenReturn(true);
+        when(userClient.userExists(toUserId)).thenReturn(false);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> connectionService.create(fromUserId, toUserId)
+        );
+    }
     // listByUserShouldReturnConnectionsAndSendEvent
+    @Test
+    void listByUserShouldReturnConnectionsAndSendEvent() {
+        Connection connection1 = new Connection("user-1", "user-2");
+        Connection connection2 = new Connection("user-1", "user-3");
+        List<Connection> lista = new ArrayList<>();
+        lista.add(connection1);
+        lista.add(connection2);
+
+        when(repository.findByFromUserId("user-1")).thenReturn(lista);
+
+        List<Connection> response = connectionService.listByUser("user-1");
+
+        assertEquals(2, response.size());
+        assertNotNull(response);
+        assertEquals("user-1", response.getFirst().getFromUserId());
+    }
     // deleteShouldSendEventAndRemoveConnection
+    @Test
+    void deleteShouldSendEventAndRemoveConnection() {
+        String fromUserId = "user1";
+        String toUserId = "user2";
+
+        connectionService.delete(fromUserId, toUserId);
+
+        verify(eventProducer).send(any(Event.class));
+        verify(repository).deleteByFromUserIdAndToUserId(fromUserId, toUserId);
+    }
 
 }
